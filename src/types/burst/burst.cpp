@@ -5,10 +5,14 @@
 
 Burst::Burst(BurstType type, int length)
 {
-    // TODO
+    burst_type = type;
+    this->length = length;
 }
 
 void Burst::update_time(int delta_t)
 {
-    // TODO
+    length -= delta_t;
+    if(length < 0){
+        length = 0;
+    }
 }
