@@ -17,15 +17,20 @@ FCFSScheduler::FCFSScheduler(int slice) {
 }
 
 std::shared_ptr<SchedulingDecision> FCFSScheduler::get_next_thread() {
-    // TODO
-    return nullptr;
+    int num_threads = thread_queue.size();
+    std::shared_ptr<Thread> thread = thread_queue.front();
+    thread_queue.pop();
+    std::shared_ptr<SchedulingDecision> sd;
+    sd->thread = thread;
+    sd->explanation = "Selected from " + std::to_string(num_threads) + " threads. Will run to completion of burst.";
+    sd->time_slice = -1;
+    return sd;
 }
 
 void FCFSScheduler::add_to_ready_queue(std::shared_ptr<Thread> thread) {
-    // TODO
+    thread_queue.push(thread);
 }
 
 size_t FCFSScheduler::size() const {
-    // TODO
-    return 0;
+    return thread_queue.size();
 }
