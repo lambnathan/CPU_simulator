@@ -94,8 +94,25 @@ void Simulation::run() {
 //==============================================================================
 
 void Simulation::handle_thread_arrived(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-	std::cout << "TODO: Handle thread arrived event properly\n\n";
+
+    event->thread->set_ready(event->time); //set thread to ready
+    scheduler->add_to_ready_queue(event->thread); //add thread to the ready queue
+    //check if cpu is idle
+    if(active_thread == nullptr){
+        //create new dispatcher invoked event
+        event_num++;
+        // std::shared_ptr<SchedulingDecision> sd = scheduler->get_next_thread();
+        // std::shared_ptr<Thread> next_thread = sd->thread;
+        std::shared_ptr<Event> e;
+        e->type = DISPATCHER_INVOKED;
+        e->time = event->time;
+        e->event_num = event_num;
+        e->thread = nullptr;
+        e->scheduling_decision = nullptr;
+        //add new event to event queue
+        events.push(e);
+    }
+    return;
 }
 
 void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
