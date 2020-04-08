@@ -121,9 +121,24 @@ void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
 }
 
 void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-    std::cout << "TODO: Handle cpu burst completed event properly\n\n";
-}
+    //transition thread from RUNNING to BLOCKED 
+    event->thread->set_blocked(event->time);
+    //create new IO burst event and update time
+    std::shared_ptr<Event> e;
+    event_num++;
+    e->event_num = event_num;
+    e->scheduling_decision = nullptr;
+    e->thread = nullptr;
+    e->type = IO_BURST_COMPLETED;
+    std::shared_ptr<Burst> b = event->thread->get_next_burst(IO);
+    event->thread->pop_next_burst;
+    if(b != nullptr){//got next io burst
+        e->time = event->time + b->length;
+        events.push(e);
+    }
+    else{//should techinally be thread completed if this occurs
+        return;
+    }
 
 void Simulation::handle_io_burst_completed(const std::shared_ptr<Event> event) {
     // TODO: Handle this event properly
@@ -141,8 +156,41 @@ void Simulation::handle_thread_preempted(const std::shared_ptr<Event> event) {
 }
 
 void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-    std::cout << "TODO: Handle dispatcher invoked event properly\n\n";
+    //check if cpu is idle
+    if(active_thread != nullptr){ //cpu is not idle
+        //set previous thread to active thread
+        prev_thread = active_thread;
+    }
+    //try to get next thread from the scheduling algo
+    std::shared_ptr<Thread> new_thread = scheduler->get_next_thread()->thread;
+    //check if we got a thread
+    if(new_thread != nullptr){
+        //set the active cpu thread to the new thread
+        active_thread = new_thread;
+
+        event_num++;
+        std::shared_ptr<Event> e;
+        e->event_num = event_num;
+        e->thread = nullptr;
+        e->scheduling_decision = nullptr;
+
+        //check if the new thread is from the same process as previous thread
+        if(active_thread->process_id == prev_thread->process_id){ //same parent process
+            //next event will be a thread dispatch
+            e->type = THREAD_DISPATCH_COMPLETED;
+            e->time = event->time + thread_switch_overhead;
+        }
+        else{
+            //next event will be a process dispatch
+            e->type = PROCESS_DISPATCH_COMPLETED;
+            e-> time = event->time + process_switch_overhead;
+        }
+        events.push(e);
+        return;
+    }
+    else{
+        return;
+    }
 }
 
 
