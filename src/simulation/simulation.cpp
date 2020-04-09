@@ -116,8 +116,8 @@ void Simulation::handle_thread_arrived(const std::shared_ptr<Event> event) {
 }
 
 void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-    std::cout << "TODO: Handle dispatch completed event properly\n\n";
+    
+
 }
 
 void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) {
@@ -127,8 +127,8 @@ void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) 
     std::shared_ptr<Event> e;
     event_num++;
     e->event_num = event_num;
-    e->scheduling_decision = nullptr;
-    e->thread = nullptr;
+    e->scheduling_decision = event->scheduling_decision;
+    e->thread = event->thread;
     e->type = IO_BURST_COMPLETED;
     std::shared_ptr<Burst> b = event->thread->get_next_burst(IO);
     event->thread->pop_next_burst;
@@ -139,20 +139,53 @@ void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) 
     else{//should techinally be thread completed if this occurs
         return;
     }
+}
 
 void Simulation::handle_io_burst_completed(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-    std::cout << "TODO: Handle io burst completed event properly\n\n";
+    //thread transitions from blocked to ready
+    event->thread->set_ready(event->time);
+    //create new dispatcher invoked event
+    event_num++;
+    std::shared_ptr<Event> e;
+    e->event_num = event_num;
+    e->scheduling_decision = event->scheduling_decision;
+    e->thread = event->thread;
+    e->time = event->time;
+    e->type = DISPATCHER_INVOKED;
+    events.push(e);
+    return;
 }
 
 void Simulation::handle_thread_completed(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-    std::cout << "TODO: Handle thread completed event properly\n\n";
+    //transition from RUNNING TO EXIT
+    event->thread->set_finished(event->time);
+    //create new dispatcher invoked event
+    event_num++;
+    std::shared_ptr<Event> e;
+    e->event_num = event_num;
+    e->scheduling_decision = event->scheduling_decision;
+    e->thread = nullptr;
+    e->type = DISPATCHER_INVOKED;
+    e->time = event->time;
+    events.push(e);
 }
 
 void Simulation::handle_thread_preempted(const std::shared_ptr<Event> event) {
-    // TODO: Handle this event properly
-    std::cout << "TODO: Handle thread preempted event properly\n\n";
+    //set status of current thread from running to blocked
+    event->thread->set_blocked(event->time);
+    //update remaining burst time of thread
+
+    //save current status of thread and add to back of thread queue
+
+    //create new DISPATCHER_INVOKED event
+    event_num++;
+    std::shared_ptr<Event> e;
+    e->event_num = event_num;
+    e->scheduling_decision = event->scheduling_decision;
+    e->time = event->time;
+    e->type = DISPATCHER_INVOKED;
+    e->thread = nullptr;
+    events.push(e);
 }
 
 void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
@@ -171,8 +204,8 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
         event_num++;
         std::shared_ptr<Event> e;
         e->event_num = event_num;
-        e->thread = nullptr;
-        e->scheduling_decision = nullptr;
+        e->thread = active_thread;
+        e->scheduling_decision = event->scheduling_decision;
 
         //check if the new thread is from the same process as previous thread
         if(active_thread->process_id == prev_thread->process_id){ //same parent process
