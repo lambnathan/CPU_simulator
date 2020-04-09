@@ -18,8 +18,14 @@ FCFSScheduler::FCFSScheduler(int slice) {
 
 std::shared_ptr<SchedulingDecision> FCFSScheduler::get_next_thread() {
     int num_threads = thread_queue.size();
-    std::shared_ptr<Thread> thread = thread_queue.front();
-    thread_queue.pop();
+    std::shared_ptr<Thread> thread;
+    if(num_threads == 0){
+        thread = nullptr;
+    }
+    else{
+        thread = thread_queue.front();
+        thread_queue.pop();
+    }
     std::shared_ptr<SchedulingDecision> sd;
     sd->thread = thread;
     sd->explanation = "Selected from " + std::to_string(num_threads) + " threads. Will run to completion of burst.";

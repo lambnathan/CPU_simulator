@@ -160,6 +160,10 @@ public:
 
     void handle_dispatcher_invoked(const std::shared_ptr<Event> event);
 
+    //helper function for handle_dispatch_completed
+    //checks if we are on last burst and creates events accordingly
+    void dispatch_completed_helper(const std::shared_ptr<Event> event, const std::shared_ptr<Burst> b);
+
     /*
         read_file(filename):
             This function reads in the simulation file, as specified by filename. If filename is

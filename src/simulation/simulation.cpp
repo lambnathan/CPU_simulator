@@ -115,9 +115,57 @@ void Simulation::handle_thread_arrived(const std::shared_ptr<Event> event) {
     return;
 }
 
-void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
-    
+void Simulation::dispatch_completed_helper(const std::shared_ptr<Event> event, const std::shared_ptr<Burst> b){
+    event_num++;
+    std::shared_ptr<Event> e;
+    if(event->thread->bursts.size() == 0){
+        //no more bursts for this thread, create THREAD_FINISHED event
+        e->event_num = event_num;
+        e->scheduling_decision = nullptr;
+        e->thread = nullptr;
+        e->time = event->time + b->length;
+        e->type = THREAD_COMPLETED;
+    }
+    else{
+        //still more bursts, create cpu burst completed event
+        e->event_num = event_num;
+        e->scheduling_decision = event->scheduling_decision;
+        e->thread = event->thread;
+        e->time = event->time + b->length;
+        e->type = CPU_BURST_COMPLETED;
+    }
+    events.push(e);
+}
 
+void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
+    //thread transitions from READY to RUNNING
+    event->thread->set_running(event->time);
+    //check if using a preemptive algorithm
+    if(flags.scheduler != "FCFS"){ //is a preemptive algo
+        std::shared_ptr<Burst> current_burst = event->thread->get_next_burst(CPU);
+        if(current_burst->length - event->scheduling_decision->time_slice <= 0){//can finish the burst
+            event->thread->pop_next_burst(CPU);
+            dispatch_completed_helper(event, current_burst);
+            return;
+        }
+        else{//cant finish the burst, so preemp it
+            event_num++;
+            std::shared_ptr<Event> e;
+            e->event_num = event_num;
+            e->scheduling_decision = event->scheduling_decision;
+            e->thread = event->thread;
+            e->time = event->time + event->scheduling_decision->time_slice;
+            e->type = THREAD_PREEMPTED;
+            events.push(e);
+            return;
+        }
+    }
+    else{ //non-preemptive, so complete the cpu burst
+        std::shared_ptr<Burst> b = event->thread->get_next_burst(CPU);
+        event->thread->pop_next_burst(CPU);
+        dispatch_completed_helper(event, b);
+        return;
+    }
 }
 
 void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) {
@@ -163,7 +211,7 @@ void Simulation::handle_thread_completed(const std::shared_ptr<Event> event) {
     event_num++;
     std::shared_ptr<Event> e;
     e->event_num = event_num;
-    e->scheduling_decision = event->scheduling_decision;
+    e->scheduling_decision = nullptr;
     e->thread = nullptr;
     e->type = DISPATCHER_INVOKED;
     e->time = event->time;
@@ -174,14 +222,16 @@ void Simulation::handle_thread_preempted(const std::shared_ptr<Event> event) {
     //set status of current thread from running to blocked
     event->thread->set_blocked(event->time);
     //update remaining burst time of thread
-
+    std::shared_ptr<Burst> current_burst = event->thread->get_next_burst(CPU);
+    current_burst->update_time(current_burst->length - event->scheduling_decision->time_slice);
+    event->thread->pop_next_burst(CPU);
     //save current status of thread and add to back of thread queue
-
+    scheduler->add_to_ready_queue(event->thread);
     //create new DISPATCHER_INVOKED event
     event_num++;
     std::shared_ptr<Event> e;
     e->event_num = event_num;
-    e->scheduling_decision = event->scheduling_decision;
+    e->scheduling_decision = nullptr;
     e->time = event->time;
     e->type = DISPATCHER_INVOKED;
     e->thread = nullptr;
@@ -195,7 +245,8 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
         prev_thread = active_thread;
     }
     //try to get next thread from the scheduling algo
-    std::shared_ptr<Thread> new_thread = scheduler->get_next_thread()->thread;
+    std::shared_ptr<SchedulingDecision> sd = scheduler->get_next_thread();
+    std::shared_ptr<Thread> new_thread = sd->thread;
     //check if we got a thread
     if(new_thread != nullptr){
         //set the active cpu thread to the new thread
@@ -205,7 +256,7 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
         std::shared_ptr<Event> e;
         e->event_num = event_num;
         e->thread = active_thread;
-        e->scheduling_decision = event->scheduling_decision;
+        e->scheduling_decision = sd;
 
         //check if the new thread is from the same process as previous thread
         if(active_thread->process_id == prev_thread->process_id){ //same parent process
