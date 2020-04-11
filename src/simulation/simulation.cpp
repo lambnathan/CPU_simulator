@@ -94,14 +94,12 @@ void Simulation::run() {
 //==============================================================================
 
 void Simulation::handle_thread_arrived(const std::shared_ptr<Event> event) {
-
     event->thread->set_ready(event->time); //set thread to ready
     scheduler->add_to_ready_queue(event->thread); //add thread to the ready queue
     //check if cpu is idle
     if(active_thread == nullptr){
         //create new dispatcher invoked event
         event_num++;
-        
         std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
         //add new event to event queue
         events.push(e);
@@ -170,10 +168,13 @@ void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) 
 void Simulation::handle_io_burst_completed(const std::shared_ptr<Event> event) {
     //thread transitions from blocked to ready
     event->thread->set_ready(event->time);
-    //create new dispatcher invoked event
-    event_num++;
-    std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, event->thread, event->scheduling_decision);
-    events.push(e);
+
+    if(active_thread == nullptr){
+        //create new dispatcher invoked event
+        event_num++;
+        std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, event->thread, event->scheduling_decision);
+        events.push(e);
+    }
     return;
 }
 
@@ -181,9 +182,11 @@ void Simulation::handle_thread_completed(const std::shared_ptr<Event> event) {
     //transition from RUNNING TO EXIT
     event->thread->set_finished(event->time);
     //create new dispatcher invoked event
-    event_num++;
-    std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
-    events.push(e);
+    if(active_thread == nullptr){
+        event_num++;
+        std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
+        events.push(e);
+    }
 }
 
 void Simulation::handle_thread_preempted(const std::shared_ptr<Event> event) {
@@ -196,28 +199,26 @@ void Simulation::handle_thread_preempted(const std::shared_ptr<Event> event) {
     //save current status of thread and add to back of thread queue
     scheduler->add_to_ready_queue(event->thread);
     //create new DISPATCHER_INVOKED event
-    event_num++;
-    std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
-    events.push(e);
+    if(active_thread == nullptr){
+        event_num++;
+        std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
+        events.push(e);
+    }
 }
 
 void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
-    std::shared_ptr<SchedulingDecision> sd = std::make_shared<SchedulingDecision>();
     //check if cpu is idle
     if(active_thread != nullptr){ //cpu is not idle
         //set previous thread to active thread
         prev_thread = active_thread;
     }
-    else{
-        //try to get next thread from scheduling algo
-        sd = scheduler->get_next_thread();
-        event->scheduling_decision = sd;
-    }
-    
-    this->logger.print_verbose(event, event->scheduling_decision->thread, event->scheduling_decision->explanation);
+    //try to get the next thread from the scheduling algo
+    std::shared_ptr<SchedulingDecision> sd = scheduler->get_next_thread();
 
     //check if we got a thread
-    if(sd != nullptr){
+    if(sd->thread != nullptr){
+        this->logger.print_verbose(event, sd->thread, sd->explanation);
+
         //set the active cpu thread to the new thread
         active_thread = sd->thread;
         event_num++;
@@ -226,20 +227,20 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
             //next event will be a thread dispatch
             std::shared_ptr<Event> e = std::make_shared<Event>(THREAD_DISPATCH_COMPLETED, event->time + thread_switch_overhead,
                  event_num, active_thread, sd);
-            printf("thread dis\n");
-            //this->logger.print_verbose(e, e->thread, e->scheduling_decision->explanation);
             events.push(e);
         }
         else{
             //next event will be a process dispatch
             std::shared_ptr<Event> e = std::make_shared<Event>(PROCESS_DISPATCH_COMPLETED, event->time + process_switch_overhead,
                  event_num, active_thread, sd);
-            //this->logger.print_verbose(e, e->thread, e->scheduling_decision->explanation);
             events.push(e);
         }
         return;
     }
     else{
+        //set cpu to idle
+        printf("no thread?\n");
+        active_thread = nullptr;
         return;
     }
 }
