@@ -111,7 +111,7 @@ void Simulation::dispatch_completed_helper(const std::shared_ptr<Event> event, c
     event_num++;
     if(event->thread->bursts.size() == 0){
         //no more bursts for this thread, create THREAD_FINISHED event
-        std::shared_ptr<Event> e = std::make_shared<Event>(THREAD_COMPLETED, event->time + b->length, event_num, nullptr, nullptr);
+        std::shared_ptr<Event> e = std::make_shared<Event>(THREAD_COMPLETED, event->time + b->length, event_num, event->thread, event->scheduling_decision);
         events.push(e);
     }
     else{
@@ -140,7 +140,7 @@ void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
             return;
         }
     }
-    else{ //non-preemptive, so complete the cpu burst
+    else{ //non-preemptive, so complete a cpu burst
         std::shared_ptr<Burst> b = event->thread->get_next_burst(CPU);
         event->thread->pop_next_burst(CPU);
         dispatch_completed_helper(event, b);
@@ -151,8 +151,9 @@ void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
 void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) {
     //transition thread from RUNNING to BLOCKED 
     event->thread->set_blocked(event->time);
+    prev_thread = active_thread;
+    active_thread = nullptr; //thread is blocked, so is not active
     //create new IO burst event and update time
-    
     event_num++;
     std::shared_ptr<Burst> b = event->thread->get_next_burst(IO);
     event->thread->pop_next_burst(IO);
@@ -168,11 +169,13 @@ void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) 
 void Simulation::handle_io_burst_completed(const std::shared_ptr<Event> event) {
     //thread transitions from blocked to ready
     event->thread->set_ready(event->time);
+    //put thread back in ready queue
+    scheduler->add_to_ready_queue(event->thread);
 
     if(active_thread == nullptr){
         //create new dispatcher invoked event
         event_num++;
-        std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, event->thread, event->scheduling_decision);
+        std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
         events.push(e);
     }
     return;
