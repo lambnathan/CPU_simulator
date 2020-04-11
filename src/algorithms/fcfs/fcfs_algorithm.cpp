@@ -26,7 +26,7 @@ std::shared_ptr<SchedulingDecision> FCFSScheduler::get_next_thread() {
         thread = thread_queue.front();
         thread_queue.pop();
     }
-    std::shared_ptr<SchedulingDecision> sd;
+    std::shared_ptr<SchedulingDecision> sd = std::make_shared<SchedulingDecision>();
     sd->thread = thread;
     sd->explanation = "Selected from " + std::to_string(num_threads) + " threads. Will run to completion of burst.";
     sd->time_slice = -1;
