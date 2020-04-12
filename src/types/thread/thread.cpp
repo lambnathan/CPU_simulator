@@ -8,7 +8,7 @@ void Thread::set_ready(int time) {
         set_state(READY, time);
     }
     else{
-        printf("Error: Ivalid transitionn\n");
+        printf("Error: Ivalid transition set_ready\n");
         exit(1); 
     }
 }
@@ -18,7 +18,7 @@ void Thread::set_running(int time) {
         set_state(RUNNING, time);
     }
     else{
-        printf("Error: Ivalid transitionn\n");
+        printf("Error: Ivalid transition set_running\n");
         exit(1); 
     }
 }
@@ -28,7 +28,7 @@ void Thread::set_blocked(int time) {
         set_state(BLOCKED, time);
     }
     else{
-        printf("Error: Ivalid transitionn\n");
+        printf("Error: Ivalid transition set_blocked\n");
         exit(1);
     }
 }
@@ -38,7 +38,7 @@ void Thread::set_finished(int time) {
         set_state(EXIT, time);
     }
     else{
-        printf("Error: Ivalid transitionn\n");
+        printf("Error: Ivalid transition set_finished\n");
         exit(1);
     }
 }

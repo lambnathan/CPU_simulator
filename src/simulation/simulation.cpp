@@ -166,6 +166,10 @@ void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) 
     std::shared_ptr<Burst> b = event->thread->get_next_burst(IO);
     event->thread->pop_next_burst(IO);
     if(b != nullptr){//got next io burst
+        //also make new dispatcher invoked event, since cpu burst just completed
+        std::shared_ptr<Event> di = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
+        events.push(di);
+        event_num++;
         std::shared_ptr<Event> e = std::make_shared<Event>(IO_BURST_COMPLETED, event->time + b->length, event_num, event->thread, event->scheduling_decision);
         events.push(e);
         //update time spent on IO
@@ -196,6 +200,9 @@ void Simulation::handle_thread_completed(const std::shared_ptr<Event> event) {
     event->thread->set_finished(event->time);
     //update thread end time
     event->thread->end_time = event->time;
+
+    prev_thread = active_thread;
+    active_thread = nullptr;
 
     //create new dispatcher invoked event
     if(active_thread == nullptr){
@@ -257,7 +264,6 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
     }
     else{
         //set cpu to idle
-        printf("no thread?\n");
         active_thread = nullptr;
         return;
     }
@@ -293,11 +299,11 @@ SystemStats Simulation::calculate_statistics() {
     }
     for(int i = 0; i < 4; i++){
         if(this->system_stats.thread_counts[i] != 0){
-            this->system_stats.avg_thread_response_times[i] = total_repsonse_times[i] / this->system_stats.thread_counts[i];
-            this->system_stats.avg_thread_turnaround_times[i] = total_turnaround_times[i] / this->system_stats.thread_counts[i];
+            this->system_stats.avg_thread_response_times[i] = (double)total_repsonse_times[i] / this->system_stats.thread_counts[i];
+            this->system_stats.avg_thread_turnaround_times[i] = (double)total_turnaround_times[i] / this->system_stats.thread_counts[i];
         }
     }
-    this->system_stats.total_idle_time = this->system_stats.io_time; //CPU is idle when doing IO
+    this->system_stats.total_idle_time = this->system_stats.total_time - this->system_stats.service_time - this->system_stats.dispatch_time;
     this->system_stats.cpu_utilization = ((double)(this->system_stats.dispatch_time + this->system_stats.service_time) / this->system_stats.total_time) * 100;
     this->system_stats.cpu_efficiency = ((double)this->system_stats.service_time / this->system_stats.total_time) * 100;
     return this->system_stats;
