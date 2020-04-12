@@ -94,6 +94,7 @@ void Simulation::run() {
 //==============================================================================
 
 void Simulation::handle_thread_arrived(const std::shared_ptr<Event> event) {
+    event->thread->arrival_time = event->time; //set the thread's arrival time
     event->thread->set_ready(event->time); //set thread to ready
     scheduler->add_to_ready_queue(event->thread); //add thread to the ready queue
     //check if cpu is idle
@@ -119,10 +120,15 @@ void Simulation::dispatch_completed_helper(const std::shared_ptr<Event> event, c
         std::shared_ptr<Event> e = std::make_shared<Event>(CPU_BURST_COMPLETED, event->time + b->length, event_num, event->thread, event->scheduling_decision);
         events.push(e);
     }
+    //update time spent on CPU
+    event->thread->service_time += b->length;
 }
 
 void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
     //thread transitions from READY to RUNNING
+    if(event->thread->previous_state == NEW){ //first time thread starts running, set start time
+        event->thread->start_time = event->time;
+    }
     event->thread->set_running(event->time);
     //check if using a preemptive algorithm
     if(flags.scheduler != "FCFS"){ //is a preemptive algo
@@ -137,6 +143,8 @@ void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
             std::shared_ptr<Event> e = std::make_shared<Event>(THREAD_PREEMPTED, event->time + event->scheduling_decision->time_slice,
                 event_num, event->thread, event->scheduling_decision);
             events.push(e);
+            //update time on CPU it was able to spend
+            event->thread->service_time += event->scheduling_decision->time_slice;
             return;
         }
     }
@@ -160,6 +168,8 @@ void Simulation::handle_cpu_burst_completed(const std::shared_ptr<Event> event) 
     if(b != nullptr){//got next io burst
         std::shared_ptr<Event> e = std::make_shared<Event>(IO_BURST_COMPLETED, event->time + b->length, event_num, event->thread, event->scheduling_decision);
         events.push(e);
+        //update time spent on IO
+        event->thread->io_time += b->length;
     }
     else{//should techinally be thread completed if this occurs
         return;
@@ -184,6 +194,9 @@ void Simulation::handle_io_burst_completed(const std::shared_ptr<Event> event) {
 void Simulation::handle_thread_completed(const std::shared_ptr<Event> event) {
     //transition from RUNNING TO EXIT
     event->thread->set_finished(event->time);
+    //update thread end time
+    event->thread->end_time = event->time;
+
     //create new dispatcher invoked event
     if(active_thread == nullptr){
         event_num++;
@@ -231,12 +244,14 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
             std::shared_ptr<Event> e = std::make_shared<Event>(THREAD_DISPATCH_COMPLETED, event->time + thread_switch_overhead,
                  event_num, active_thread, sd);
             events.push(e);
+            this->system_stats.dispatch_time += thread_switch_overhead;
         }
         else{
             //next event will be a process dispatch
             std::shared_ptr<Event> e = std::make_shared<Event>(PROCESS_DISPATCH_COMPLETED, event->time + process_switch_overhead,
                  event_num, active_thread, sd);
             events.push(e);
+            this->system_stats.dispatch_time += process_switch_overhead;
         }
         return;
     }
@@ -254,7 +269,37 @@ void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
 //==============================================================================
 
 SystemStats Simulation::calculate_statistics() {
-    // TODO: Implement functionality for calculating the simulation statistics
+    //Implement functionality for calculating the simulation statistics
+    //loop over every process, then loop over every thread of each process and get stats that were stored in each thread
+    std::vector<int> total_repsonse_times = {0, 0, 0, 0};
+    std::vector<int> total_turnaround_times = {0, 0, 0, 0};
+    for(auto it = processes.begin(); it != processes.end(); it++){
+        std::shared_ptr<Process> p = it->second; //get process
+        for(int i = 0; i < p->threads.size(); i++){ //go over each thread in process
+            std::shared_ptr<Thread> thread = p->threads[i];
+            this->system_stats.io_time += thread->io_time; //update io time
+            this->system_stats.service_time += thread->service_time; //update CPU time
+            this->system_stats.total_cpu_time = this->system_stats.service_time; //service time same as total cpu time?
+            if(this->system_stats.total_time < thread->end_time){
+                this->system_stats.total_time = thread->end_time;
+            }
+            //update thread type counts
+            this->system_stats.thread_counts[thread->priority]++;
+
+            //add to total repsonse times and turnaround times
+            total_repsonse_times[thread->priority] += thread->response_time();
+            total_turnaround_times[thread->priority] += thread->turnaround_time();
+        }
+    }
+    for(int i = 0; i < 4; i++){
+        if(this->system_stats.thread_counts[i] != 0){
+            this->system_stats.avg_thread_response_times[i] = total_repsonse_times[i] / this->system_stats.thread_counts[i];
+            this->system_stats.avg_thread_turnaround_times[i] = total_turnaround_times[i] / this->system_stats.thread_counts[i];
+        }
+    }
+    this->system_stats.total_idle_time = this->system_stats.io_time; //CPU is idle when doing IO
+    this->system_stats.cpu_utilization = ((double)(this->system_stats.dispatch_time + this->system_stats.service_time) / this->system_stats.total_time) * 100;
+    this->system_stats.cpu_efficiency = ((double)this->system_stats.service_time / this->system_stats.total_time) * 100;
     return this->system_stats;
 }
 

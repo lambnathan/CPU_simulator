@@ -58,7 +58,6 @@ void Thread::set_state(ThreadState state, int time) {
 }
 
 std::shared_ptr<Burst> Thread::get_next_burst(BurstType type) {
-    // TODO
     int num_bursts = bursts.size();
     int i = 0;
     while(i != num_bursts){
