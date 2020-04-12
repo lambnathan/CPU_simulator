@@ -24,6 +24,7 @@ public:
     //==================================================
 
     // Add any member variables you may need.
+    std::queue<std::shared_ptr<Thread>> thread_queue; //holds the threads to be scheduled
 
     //==================================================
     //  Member functions

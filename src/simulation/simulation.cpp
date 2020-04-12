@@ -213,20 +213,17 @@ void Simulation::handle_thread_completed(const std::shared_ptr<Event> event) {
 }
 
 void Simulation::handle_thread_preempted(const std::shared_ptr<Event> event) {
-    //set status of current thread from running to blocked
-    event->thread->set_blocked(event->time);
+    //set status of current thread from running to ready
+    event->thread->set_ready(event->time);
     //update remaining burst time of thread
     std::shared_ptr<Burst> current_burst = event->thread->get_next_burst(CPU);
-    current_burst->update_time(current_burst->length - event->scheduling_decision->time_slice);
-    event->thread->pop_next_burst(CPU);
+    current_burst->update_time(event->scheduling_decision->time_slice);
     //save current status of thread and add to back of thread queue
     scheduler->add_to_ready_queue(event->thread);
     //create new DISPATCHER_INVOKED event
-    if(active_thread == nullptr){
-        event_num++;
-        std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
-        events.push(e);
-    }
+    event_num++;
+    std::shared_ptr<Event> e = std::make_shared<Event>(DISPATCHER_INVOKED, event->time, event_num, nullptr, nullptr);
+    events.push(e);
 }
 
 void Simulation::handle_dispatcher_invoked(const std::shared_ptr<Event> event) {
