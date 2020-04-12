@@ -25,10 +25,17 @@ public:
     //==================================================
 
     // Add any member variables you may need.
+    std::queue<std::shared_ptr<Thread>> system_queue;
+    std::queue<std::shared_ptr<Thread>> interactive_queue;
+    std::queue<std::shared_ptr<Thread>> normal_queue;
+    std::queue<std::shared_ptr<Thread>> batch_queue;
+
 
     //==================================================
     //  Member functions
     //==================================================
+
+    std::string message_builder(); //helper function for building scheduling decision messages
 
     PRIORITYScheduler(int slice = -1);
 

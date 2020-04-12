@@ -131,7 +131,7 @@ void Simulation::handle_dispatch_completed(const std::shared_ptr<Event> event) {
     }
     event->thread->set_running(event->time);
     //check if using a preemptive algorithm
-    if(flags.scheduler != "FCFS"){ //is a preemptive algo
+    if(flags.scheduler == "RR"){ //is a preemptive algo
         std::shared_ptr<Burst> current_burst = event->thread->get_next_burst(CPU);
         if(current_burst->length - event->scheduling_decision->time_slice <= 0){//can finish the burst
             event->thread->pop_next_burst(CPU);

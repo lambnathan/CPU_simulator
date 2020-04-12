@@ -14,6 +14,7 @@ FCFSScheduler::FCFSScheduler(int slice) {
     if (slice != -1) {
         throw("FCFS must have a timeslice of -1");
     }
+    time_slice = -1;
 }
 
 std::shared_ptr<SchedulingDecision> FCFSScheduler::get_next_thread() {
