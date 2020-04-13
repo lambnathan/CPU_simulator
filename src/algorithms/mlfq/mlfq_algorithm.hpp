@@ -20,6 +20,16 @@ public:
     //==================================================
 
     // Add any member variables you may need.
+    std::queue<std::shared_ptr<Thread>> queue_0;
+    std::queue<std::shared_ptr<Thread>> queue_1;
+    std::queue<std::shared_ptr<Thread>> queue_2;
+    std::queue<std::shared_ptr<Thread>> queue_3;
+    std::queue<std::shared_ptr<Thread>> queue_4;
+    std::queue<std::shared_ptr<Thread>> queue_5;
+    std::queue<std::shared_ptr<Thread>> queue_6;
+    std::queue<std::shared_ptr<Thread>> queue_7;
+    std::queue<std::shared_ptr<Thread>> queue_8;
+    std::queue<std::shared_ptr<Thread>> queue_9;
 
 
     //==================================================
